@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SQLD 실전 노트</title>
+  <meta name="description" content="SQLD 개념 정리, 객관식 문제, 브라우저에서 바로 돌려보는 SQL 실습, 모의고사와 오답노트.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2314705a'/%3E%3Cpath d='M9 11c0-2 3-3 7-3s7 1 7 3v10c0 2-3 3-7 3s-7-1-7-3z' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Cpath d='M9 11c0 2 3 3 7 3s7-1 7-3M9 16c0 2 3 3 7 3s7-1 7-3' fill='none' stroke='%23fff' stroke-width='2'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="#/guide">
+        <span class="brand-mark" aria-hidden="true">SQL</span>
+        <span class="brand-text">SQLD 실전 노트</span>
+      </a>
+      <nav class="nav" aria-label="메뉴">
+        <a href="#/guide" data-route="guide">개념</a>
+        <a href="#/quiz" data-route="quiz">문제</a>
+        <a href="#/lab" data-route="lab">SQL 실습</a>
+        <a href="#/mock" data-route="mock">모의고사</a>
+        <a href="#/wrong" data-route="wrong">오답노트 <span class="badge" id="wrongCount" hidden></span></a>
+      </nav>
+      <button class="theme-btn" id="themeBtn" type="button" aria-label="화면 테마 바꾸기" title="화면 테마 바꾸기">◐</button>
+    </div>
+  </header>
+
+  <main id="app" class="app">
+    <div class="loading">불러오는 중…</div>
+  </main>
+
+  <footer class="footer">
+    <p>개인 학습용 비공식 자료입니다. 문제는 시험 범위를 바탕으로 직접 작성했으며, 진행 상황은 이 브라우저에만 저장됩니다.</p>
+  </footer>
+
+  <script src="vendor/marked.min.js"></script>
+  <script src="vendor/sql-wasm.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
