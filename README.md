@@ -29,7 +29,7 @@ vendor/             sql.js(브라우저용 SQLite), marked(마크다운 변환)
 `index.html`을 더블클릭해서 열면 브라우저 보안 정책 때문에 데이터 파일을 못 읽어요. 폴더에서 간단한 서버를 띄워서 여세요.
 
 ```bash
-cd sqld-study
+cd SQL-Developer
 python3 -m http.server 8000
 # 브라우저에서 http://localhost:8000
 ```
@@ -38,23 +38,23 @@ python3 -m http.server 8000
 
 ### 방법 A. 터미널(git)로 올리기
 
-1. GitHub에서 **New repository** → 이름 예: `sqld-study` → Public → Create (README 추가 체크는 하지 않기)
+1. GitHub에서 **New repository** → 이름 예: `SQL-Developer` → Public → Create (README 추가 체크는 하지 않기)
 2. 이 폴더에서:
 
 ```bash
-cd sqld-study
+cd SQL-Developer
 git init
 git add .
 git commit -m "SQLD 실전 노트 첫 배포"
 git branch -M main
-git remote add origin https://github.com/<내아이디>/sqld-study.git
+git remote add origin https://github.com/Yumjiin/SQL-Developer.git
 git push -u origin main
 ```
 
 3. 저장소의 **Settings → Pages**
    - Source: **Deploy from a branch**
    - Branch: **main**, 폴더: **/ (root)** → Save
-4. 1~2분 뒤 `https://<내아이디>.github.io/sqld-study/` 에서 열립니다.
+4. 1~2분 뒤 `https://Yumjiin.github.io/SQL-Developer/` 에서 열립니다.
 
 ### 방법 B. 웹에서 드래그로 올리기
 
