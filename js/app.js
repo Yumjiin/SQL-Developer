@@ -57,7 +57,7 @@
   const byId = (list, id) => list.find((x) => x.id === id);
   const shuffle = (arr) => {
     const a = arr.slice();
-    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+    for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1));[a[i], a[j]] = [a[j], a[i]]; }
     return a;
   };
   const subjectTag = (s) => `<span class="tag s${s}">${s}과목</span>`;
@@ -220,6 +220,7 @@
     const [page, arg] = hash.split('/');
     document.querySelectorAll('.nav a').forEach((a) => a.classList.toggle('active', a.dataset.route === page));
     stopTimer();
+    document.onkeydown = null;
     if (page === 'quiz') return renderQuiz();
     if (page === 'lab') return renderLab(arg);
     if (page === 'mock') return renderMock();
@@ -292,60 +293,106 @@
     if (quizState.key !== key) {
       quizState.key = key; quizState.list = buildQuizList(f); quizState.idx = 0; quizState.reveal = {};
     }
-    const chapters = [...new Set(D.questions.filter((q) => f.subject === 'all' || String(q.subject) === f.subject).map((q) => q.chapter))];
     const log = quizLog();
+    const wrong = new Set(wrongSet().quiz);
+    const list = quizState.list;
+    const inSubject = D.questions.filter((q) => f.subject === 'all' || String(q.subject) === f.subject);
+    const inScope = inSubject.filter((q) => f.chapter === 'all' || q.chapter === f.chapter);
+    const chapters = [...new Set(inSubject.map((q) => q.chapter))];
+    const cnt = (s) => D.questions.filter((q) => s === 'all' || q.subject === s).length;
     const done = D.questions.filter((q) => log[q.id]);
     const right = done.filter((q) => log[q.id].ok);
-    const list = quizState.list;
+    const pill = (attr, val, label, n, on) => `<button class="pill ${on ? 'on' : ''}" ${attr}="${esc(val)}">${esc(label)}<span class="n">${n}</span></button>`;
 
     let body;
     if (!list.length) {
-      body = `<div class="card empty">조건에 맞는 문제가 없어요. ${f.mode === 'wrong' ? '틀린 문제가 없네요!' : '필터를 바꿔 보세요.'}</div>`;
+      body = `<div class="card empty">조건에 맞는 문제가 없어요. ${f.mode === 'wrong' ? '틀린 문제가 없네요!' : '다른 단원이나 범위를 골라 보세요.'}</div>`;
     } else {
       const q = list[quizState.idx];
-      body = `<div class="card pad">${questionCardHTML(q, quizState.idx + 1, list.length)}
-        <div class="btn-row q-nav">
-          <button class="btn" id="prevQ" ${quizState.idx === 0 ? 'disabled' : ''}>← 이전</button>
-          <span class="spacer"></span>
-          <button class="btn primary" id="nextQ" ${quizState.idx === list.length - 1 ? 'disabled' : ''}>다음 →</button>
+      const listDone = list.filter((x) => log[x.id]);
+      const listRight = listDone.filter((x) => log[x.id].ok);
+      const answeredNow = !!quizState.reveal[q.id];
+      const last = quizState.idx === list.length - 1;
+      const mapOpen = store.get('quizMapOpen', false);
+      body = `<div class="card quiz-card">
+        <div class="quiz-top">
+          <span>문제 <b>${quizState.idx + 1}</b> / ${list.length}</span>
+          <span class="quiz-score">맞힌 문제 <b>${listRight.length}</b> / 푼 문제 ${listDone.length}</span>
         </div>
-        <div class="grid-nums">${list.map((x, i) => {
-          const st = log[x.id] ? (log[x.id].ok ? 'ok' : 'no') : '';
-          return `<button data-jump="${i}" class="${st} ${i === quizState.idx ? 'cur' : ''}" title="${esc(x.chapter)}">${i + 1}</button>`;
-        }).join('')}</div></div>`;
+        <div class="progress"><span style="width:${(quizState.idx + 1) / list.length * 100}%"></span></div>
+        <div class="quiz-body">${questionCardHTML(q, null, null)}
+          <div class="btn-row q-nav">
+            <button class="btn" id="prevQ" ${quizState.idx === 0 ? 'disabled' : ''}>← 이전</button>
+            <span class="spacer"></span>
+            ${answeredNow ? '' : `<button class="btn ghost dashed" id="skipQ" ${last ? 'disabled' : ''}>건너뛰기</button>`}
+            <button class="btn primary" id="nextQ" ${!answeredNow || last ? 'disabled' : ''}>다음 문제 →</button>
+          </div>
+          <p class="kbd-hint">키보드 <kbd>1</kbd>~<kbd>4</kbd> 보기 선택 · <kbd>←</kbd> <kbd>→</kbd> 이동</p>
+        </div>
+        <details class="q-map" ${mapOpen ? 'open' : ''}>
+          <summary><span>문제 목록</span>
+            <span class="legend"><i class="dot ok"></i>정답 <i class="dot no"></i>오답 <i class="dot"></i>안 푼 문제</span></summary>
+          <div class="dots">${list.map((x, i) => {
+        const st = log[x.id] ? (log[x.id].ok ? 'ok' : 'no') : '';
+        return `<button data-jump="${i}" class="dot-btn ${st} ${i === quizState.idx ? 'cur' : ''}" title="${i + 1}번 · ${esc(x.chapter)}" aria-label="${i + 1}번 문제">${i + 1}</button>`;
+      }).join('')}</div>
+        </details>
+      </div>`;
     }
 
-    h(`<div class="page-head"><h1>객관식 문제</h1><p>보기를 고르면 바로 정답과 해설이 나와요. 틀린 문제는 오답노트에 자동으로 모입니다.</p></div>
-      <div class="filters">
-        <select class="select" id="fSubject" aria-label="과목">
-          <option value="all">전체 과목</option><option value="1">1과목 · 데이터 모델링</option><option value="2">2과목 · SQL 기본 및 활용</option>
-        </select>
-        <select class="select" id="fChapter" aria-label="단원">
-          <option value="all">전체 단원</option>${chapters.map((c) => `<option>${esc(c)}</option>`).join('')}
-        </select>
-        <select class="select" id="fMode" aria-label="풀이 범위">
-          <option value="all">모든 문제</option><option value="new">안 푼 문제</option><option value="wrong">틀린 문제만</option>
-        </select>
-        <label class="check"><input type="checkbox" id="fShuffle"> 섞기</label>
+    h(`<div class="page-head"><h1>객관식 문제</h1><p>보기를 고르면 바로 정답과 해설이 나와요. 틀린 문제는 오답노트에 자동으로 모입니다. · 전체 정답률 <b>${done.length ? Math.round(right.length / done.length * 100) : 0}%</b> (${done.length}/${D.questions.length} 풀이)</p></div>
+      <div class="pillbar">
+        ${pill('data-subject', 'all', '전체', cnt('all'), f.subject === 'all')}
+        ${pill('data-subject', '1', '1과목 · 데이터 모델링', cnt(1), f.subject === '1')}
+        ${pill('data-subject', '2', '2과목 · SQL 기본 및 활용', cnt(2), f.subject === '2')}
       </div>
-      <div class="stats"><span>푼 문제 <b>${done.length}</b> / ${D.questions.length}</span><span>정답률 <b>${done.length ? Math.round(right.length / done.length * 100) : 0}%</b></span><span>지금 목록 <b>${list.length}</b>문제</span></div>
-      <div class="progress"><span style="width:${D.questions.length ? done.length / D.questions.length * 100 : 0}%"></span></div>
+      <div class="pillbar sub">
+        ${pill('data-chapter', 'all', '전체 단원', inSubject.length, f.chapter === 'all')}
+        ${chapters.map((c) => pill('data-chapter', c, c, inSubject.filter((q) => q.chapter === c).length, f.chapter === c)).join('')}
+      </div>
+      <div class="toolbar">
+        <div class="segmented" role="group" aria-label="풀이 범위">
+          <button data-mode="all" class="${f.mode === 'all' ? 'on' : ''}">모든 문제 ${inScope.length}</button>
+          <button data-mode="new" class="${f.mode === 'new' ? 'on' : ''}">안 푼 문제 ${inScope.filter((q) => !log[q.id]).length}</button>
+          <button data-mode="wrong" class="${f.mode === 'wrong' ? 'on' : ''}">틀린 문제 ${inScope.filter((q) => wrong.has(q.id)).length}</button>
+        </div>
+        <label class="switch"><input type="checkbox" id="fShuffle" ${f.shuffle ? 'checked' : ''}><span class="track"></span>순서 섞기</label>
+      </div>
       ${body}`);
 
-    const $ = (id) => document.getElementById(id);
-    $('fSubject').value = f.subject; $('fChapter').value = chapters.includes(f.chapter) ? f.chapter : 'all';
-    $('fMode').value = f.mode; $('fShuffle').checked = !!f.shuffle;
-    const update = () => {
-      const nf = { subject: $('fSubject').value, chapter: $('fChapter').value, mode: $('fMode').value, shuffle: $('fShuffle').checked };
-      if (nf.subject !== f.subject) nf.chapter = 'all';
-      store.set('quizFilter', nf); renderQuiz();
-    };
-    ['fSubject', 'fChapter', 'fMode', 'fShuffle'].forEach((id) => $(id).addEventListener('change', update));
+    const onChip = app.querySelector('.pillbar.sub .pill.on');
+    if (onChip) onChip.parentElement.scrollLeft = onChip.offsetLeft - onChip.parentElement.offsetLeft - 16;
+    const setF = (patch) => { store.set('quizFilter', Object.assign({}, f, patch)); renderQuiz(); };
+    app.querySelectorAll('[data-subject]').forEach((b) => b.onclick = () => setF({ subject: b.dataset.subject, chapter: 'all' }));
+    app.querySelectorAll('[data-chapter]').forEach((b) => b.onclick = () => setF({ chapter: b.dataset.chapter }));
+    app.querySelectorAll('[data-mode]').forEach((b) => b.onclick = () => setF({ mode: b.dataset.mode }));
+    document.getElementById('fShuffle').onchange = (e) => setF({ shuffle: e.target.checked });
     if (!list.length) return;
-    $('prevQ').onclick = () => { quizState.idx--; renderQuiz(); };
-    $('nextQ').onclick = () => { quizState.idx++; renderQuiz(); };
-    app.querySelectorAll('[data-jump]').forEach((b) => b.onclick = () => { quizState.idx = +b.dataset.jump; renderQuiz(); });
-    bindQuestionCard(app, list[quizState.idx], () => renderQuiz());
+
+    const go = (i) => { if (i < 0 || i >= list.length) return; quizState.idx = i; renderQuiz(); };
+    document.getElementById('prevQ').onclick = () => go(quizState.idx - 1);
+    document.getElementById('nextQ').onclick = () => go(quizState.idx + 1);
+    const skip = document.getElementById('skipQ');
+    if (skip) skip.onclick = () => go(quizState.idx + 1);
+    app.querySelectorAll('[data-jump]').forEach((b) => b.onclick = () => go(+b.dataset.jump));
+    const map = app.querySelector('.q-map');
+    map.addEventListener('toggle', () => store.set('quizMapOpen', map.open));
+    const q = list[quizState.idx];
+    bindQuestionCard(app, q, () => renderQuizKeepScroll());
+    document.onkeydown = (e) => {
+      if (e.target.closest('input, textarea, select') || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (/^[1-4]$/.test(e.key) && !quizState.reveal[q.id]) {
+        const b = app.querySelector(`.choices[data-q="${q.id}"] [data-pick="${e.key}"]`);
+        if (b) b.click();
+      } else if (e.key === 'ArrowRight') go(quizState.idx + 1);
+      else if (e.key === 'ArrowLeft') go(quizState.idx - 1);
+    };
+  }
+  // 보기를 고른 직후에는 스크롤을 유지해서 해설이 바로 보이게
+  function renderQuizKeepScroll() {
+    const y = window.scrollY;
+    renderQuiz();
+    window.scrollTo(0, y);
   }
 
   // 한 문제 카드 (문제 탭, 오답노트 공용)
@@ -684,8 +731,10 @@
     store.set('mock', m);
     const hist = store.get('mockHistory', []);
     const d = new Date();
-    hist.push({ date: `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
-      score, s1: `${by[1].ok}/${by[1].n}`, s2: `${by[2].ok}/${by[2].n}`, pass });
+    hist.push({
+      date: `${d.getFullYear()}.${d.getMonth() + 1}.${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`,
+      score, s1: `${by[1].ok}/${by[1].n}`, s2: `${by[2].ok}/${by[2].n}`, pass
+    });
     store.set('mockHistory', hist.slice(-30));
     renderMockResult(m);
   }
@@ -713,14 +762,14 @@
       </div>
       <h2 class="section-title">문항별 해설</h2>
       <div class="card pad review">${qs.map((q, i) => {
-        const a = m.answers[q.id]; const ok = a === q.answer;
-        return `<details ${ok ? '' : 'open'}><summary><span class="mark ${ok ? 'ok' : 'no'}">${ok ? 'O' : 'X'}</span><span><b>${i + 1}.</b> ${fmtInline(q.question)}</span></summary>
+      const a = m.answers[q.id]; const ok = a === q.answer;
+      return `<details ${ok ? '' : 'open'}><summary><span class="mark ${ok ? 'ok' : 'no'}">${ok ? 'O' : 'X'}</span><span><b>${i + 1}.</b> ${fmtInline(q.question)}</span></summary>
           <div style="padding:10px 0 4px 26px">
             ${q.code ? `<pre class="q-code">${esc(q.code)}</pre>` : ''}
             <div class="choices">${q.choices.map((c, k) => `<div class="choice ${k + 1 === q.answer ? 'right' : (k + 1 === a ? 'wrong' : '')}"><span class="no">${k + 1}</span><span>${fmtInline(c)}</span></div>`).join('')}</div>
             <div class="explain ${ok ? 'ok' : 'no'}"><div class="verdict">${a ? (ok ? '정답' : `내 답 ${CHOICE_NO[a - 1]} · 정답 ${CHOICE_NO[q.answer - 1]}`) : `미응답 · 정답 ${CHOICE_NO[q.answer - 1]}`}</div><p>${fmtInline(q.explanation)}</p></div>
           </div></details>`;
-      }).join('')}</div>`);
+    }).join('')}</div>`);
     document.getElementById('again').onclick = () => { store.set('mock', Object.assign(m, { showResult: false })); renderMockStart(); };
   }
 
@@ -746,7 +795,7 @@
       const card = app.querySelector(`[data-card="${q.id}"]`);
       bindQuestionCard(card, q, () => {
         card.innerHTML = questionCardHTML(q);
-        bindQuestionCard(card, q, () => {});
+        bindQuestionCard(card, q, () => { });
       });
     });
   }
