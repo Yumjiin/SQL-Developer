@@ -1,0 +1,14 @@
+# 빌드 결과물
+target/
+
+# 개발용 H2 DB 파일 (관리자가 등록한 비공개 문제가 들어갈 수 있으니 절대 커밋하지 않기)
+data/
+
+# IDE 설정
+.idea/
+*.iml
+.vscode/
+
+# 비밀 값을 담는 로컬 설정 (나중에 로그인 비밀키 등)
+application-local.yml
+.env
